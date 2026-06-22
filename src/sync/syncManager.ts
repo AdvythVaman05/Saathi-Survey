@@ -117,17 +117,33 @@ export async function runTranslationQueue(): Promise<void> {
 export async function runSyncWorker(): Promise<void> {
   const syncStore = useSyncStore.getState()
   
-  // Exit early if offline, already syncing, or remote server not configured
-  if (!syncStore.isOnline || syncStore.isSyncing || !isSupabaseConfigured()) {
+  if (syncStore.isSyncing) {
+    console.log('runSyncWorker: Already syncing')
     return
   }
 
-  const pendingSessions = await getPendingSessions()
-  if (pendingSessions.length === 0) {
+  // Check online status first
+  if (!syncStore.isOnline) {
+    console.log('runSyncWorker: App is offline')
+    return
+  }
+
+  // Only proceed if Supabase is actually configured
+  if (!isSupabaseConfigured()) {
+    console.log('runSyncWorker: Supabase not configured')
     return
   }
 
   syncStore.setSyncing(true)
+  console.log('runSyncWorker: Starting sync logic...')
+  
+  const pendingSessions = await getPendingSessions()
+  if (pendingSessions.length === 0) {
+    console.log('runSyncWorker: No pending sessions')
+    syncStore.setSyncing(false)
+    return
+  }
+
   syncStore.setLastError(null)
 
   const now = Date.now()

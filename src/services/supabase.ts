@@ -71,8 +71,7 @@ export async function pushSessionToSupabase(session: SurveySession): Promise<boo
   if (!client) return false
 
   try {
-    const { error } = await client.from('survey_sessions').upsert({
-      id: session.id,
+    const { error } = await client.from('survey_sessions').insert({
       session_id: session.session_id,
       survey_id: session.survey_id,
       participant_name: session.participant_name,
@@ -89,9 +88,13 @@ export async function pushSessionToSupabase(session: SurveySession): Promise<boo
       created_at: session.created_at,
       updated_at: session.updated_at,
       sync_status: 'synced'
-    }, { onConflict: 'session_id' })
+    })
 
     if (error) {
+      if (error.code === '23505') {
+        // 23505 is unique violation, which means it already exists. Treat as success.
+        return true
+      }
       console.error('Supabase session insert error:', error.message)
       return false
     }
@@ -129,8 +132,7 @@ export async function pushResponseToSupabase(
     }
 
     // Insert response metadata table record
-    const { error } = await client.from('survey_answers').upsert({
-      id: response.id,
+    const { error } = await client.from('survey_answers').insert({
       session_id: response.session_id,
       survey_id: response.survey_id,
       question_id: response.question_id,
@@ -143,9 +145,13 @@ export async function pushResponseToSupabase(
       created_at: response.created_at,
       updated_at: response.updated_at,
       sync_status: 'synced'
-    }, { onConflict: 'id' })
+    })
 
     if (error) {
+      if (error.code === '23505') {
+        // 23505 is unique violation, which means it already exists. Treat as success.
+        return true
+      }
       console.error('Supabase insert error:', error.message)
       return false
     }
